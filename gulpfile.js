@@ -1,14 +1,12 @@
 var pkg         = require('./package.json'),
+    del         = require('del'),
     fs          = require('fs'),
-    path        = require('path'),
     glob        = require('glob'),
-    mkdirp      = require('mkdirp'),
     gulp        = require('gulp'),
     gutil       = require('gulp-util'),
     concat      = require('gulp-concat'),
     ignore      = require('gulp-ignore'),
     rename      = require('gulp-rename'),
-    rimraf      = require('gulp-rimraf'),
     replace     = require('gulp-replace'),
     header      = require('gulp-header'),
     less        = require('gulp-less'),
@@ -17,7 +15,10 @@ var pkg         = require('./package.json'),
     watch       = require('gulp-watch'),
     tap         = require('gulp-tap'),
     zip         = require('gulp-zip'),
+    mkdirp      = require('mkdirp'),
+    path        = require('path'),
     runSequence = require('run-sequence'),
+    vinylPaths  = require('vinyl-paths'),
     browserSync = require('browser-sync'),
     Promise     = require('promise');
 
@@ -77,38 +78,11 @@ var watchmode    = gutil.env._.length && gutil.env._[0] == 'watch',
         './src/js/core/cover.js'
     ];
 
-
-gulp.task('default', ['dist', 'build-docs', 'indexthemes'], function(done) {
-
-    if(gutil.env.p || gutil.env.prefix) {
-        runSequence('prefix', function(){
-            done();
-        });
-    } else {
-        done();
-    }
-});
-
-gulp.task('dist', ['dist-themes-core'], function(done) {
-
-    runSequence('sass', 'dist-core-minify', 'dist-core-header', 'dist-bower-file', function(){
-
-        if (gutil.env.m || gutil.env.min) {
-            gulp.src(['./dist/**/*.css', './dist/**/*.js', '!./dist/**/*.min.css', '!./dist/**/*.min.js'])
-            .pipe(rimraf()).on('end', function(){
-                done();
-            });
-        } else {
-            done();
-        }
-
-    });
-});
-
 /*
  * development related tasks
  * ---------------------------------------------------------*/
-gulp.task('sync', function() {
+
+function sync() {
 
     function buildTheme(theme) {
 
@@ -118,10 +92,11 @@ gulp.task('sync', function() {
 
             themes = getThemes(theme);
 
-            runSequence('dist-themes-core', function(){
+            (gulp.series(distBuild, function buildThemeComplete(done) {
                 themes = tmp;
+                done();
                 resolve();
-            });
+            }))();
         });
     }
 
@@ -174,17 +149,14 @@ gulp.task('sync', function() {
         }]
     });
 
-});
+}
 
-gulp.task('watch', ['dist-clean', 'indexthemes'], function(done) {
+function watchFiles() {
 
-    gulp.watch(watchfolders, function(files) {
-        runSequence('dist');
-    });
-});
+    gulp.watch(watchfolders, dist);
+}
 
-
-gulp.task('help', function(done) {
+function help(done) {
 
     for(var p in {
         '-c, --clean': '',
@@ -197,51 +169,52 @@ gulp.task('help', function(done) {
     }
 
     done();
-});
-
+}
 
 /*
  * dist core tasks
  * ---------------------------------------------------------*/
-gulp.task('dist-clean', function(done) {
+
+function distClean(done) {
 
     if (gutil.env.c || gutil.env.clean) {
-        return gulp.src('dist', {read: false}).pipe(rimraf());
+        return gulp.src('dist', {read: false}).pipe(vinylPaths(del));
     } else {
         done();
     }
-});
+}
 
-gulp.task('dist-core-move', ['dist-clean'], function() {
+function distCoreMove() {
+
     return gulp.src(['./src/**']).pipe(gulp.dest('./dist'));
-});
+}
 
-gulp.task('dist-core-minify', function(done) {
+function distCoreMinify(done) {
 
     if (watchmode) {
         return done();
     }
 
     // minify css
-    gulp.src(['!./dist/css/**/*.min.css', './dist/css/**/*.css']).pipe(rename({ suffix: '.min' })).pipe(minifycss({advanced:false})).pipe(gulp.dest('./dist/css')).on('end', function(){
+    gulp.src(['./dist/css/**/*.css', '!./dist/css/**/*.min.css']).pipe(rename({ suffix: '.min' })).pipe(minifycss({advanced:false})).pipe(gulp.dest('./dist/css')).on('end', function(){
 
         // minify js
-        gulp.src(['!./dist/js/**/*.min.js', './dist/js/**/*.js']).pipe(rename({ suffix: '.min' })).pipe(uglify()).pipe(gulp.dest('./dist/js')).on('end', function(){
+        gulp.src(['./dist/js/**/*.js', '!./dist/js/**/*.min.js']).pipe(rename({ suffix: '.min' })).pipe(uglify()).pipe(gulp.dest('./dist/js')).on('end', function(){
             done();
         });
     });
-});
+}
 
-gulp.task('dist-core-header', function(done) {
+function distCoreHeader(done) {
 
     if (watchmode) {
         return done();
     }
 
     return gulp.src(['./dist/**/*.css', './dist/**/*.js']).pipe(header("/*! <%= pkg.title %> <%= pkg.version %> | <%= pkg.homepage %> | (c) 2014 YOOtheme | MIT License */\n", { 'pkg' : pkg } )).pipe(gulp.dest('./dist/'));
-});
+}
 
-gulp.task('dist-bower-file', function(done) {
+function distBowerFile(done) {
     var meta = {
         "name": "uikit",
         "version": pkg.version,
@@ -271,30 +244,36 @@ gulp.task('dist-bower-file', function(done) {
     fs.writeFile('./dist/bower.json', JSON.stringify(meta, " ", 4), function(){
         done();
     });
-});
+}
+
+function distMinifyCleanup(done) {
+
+    if (gutil.env.m || gutil.env.min) {
+        return del(['./dist/**/*.css', './dist/**/*.js', '!./dist/**/*.min.css', '!./dist/**/*.min.js']);
+    } else {
+        done();
+    }
+}
 
 // generate dist zip file
-gulp.task('build', ['dist-clean'], function (done) {
+function buildPkg() {
 
-    runSequence('dist', function(){
-        gulp.src(['./dist/**/*.css', './dist/**/*.js', './dist/*/[Ff]ont*', '!./dist/bower.json'])
-            .pipe(zip('uikit-'+pkg.version+'.zip')).pipe(gulp.dest('dist')).on('end', done);
-    });
-});
-
+    return gulp.src(['./dist/**/*.css', './dist/**/*.js', './dist/*/[Ff]ont*', '!./dist/bower.json'])
+        .pipe(zip('uikit-'+pkg.version+'.zip')).pipe(gulp.dest('dist'));
+}
 
 /*
  * sass converter related tasks
  * ---------------------------------------------------------*/
 
-gulp.task('sass-copy', function() {
+function sassCopy() {
 
     return gulp.src('./dist/less/**/*.less').pipe(rename(function (path) {
         path.extname = ".scss";
     })).pipe(gulp.dest('./dist/scss'));
-});
+}
 
-gulp.task('sass-convert', ['sass-copy'], function() {
+function sassConvert() {
 
     var fade = function(match, color, amount){
         return 'fade-out('+color+', '+(1.0-amount/100.0)+')';
@@ -314,9 +293,9 @@ gulp.task('sass-convert', ['sass-copy'], function() {
            .pipe(replace(/\$\{/g, '#{$'))                                      // string literals: from: /~"(.*)"/g, to: '#{"$1"}'
            .pipe(replace(/~("[^"]+")/g, 'unquote($1)'))                       // string literals: for real
            .pipe(gulp.dest('./dist/scss'));
-});
+}
 
-gulp.task('sass', ['sass-convert'], function(done) {
+function sass(done) {
 
     glob('./dist/scss/**/*.scss', function (err, files) {
 
@@ -361,13 +340,13 @@ gulp.task('sass', ['sass-convert'], function(done) {
             });
         });
     });
-});
+}
 
 /*
  * theme related tasks
  * ---------------------------------------------------------*/
 
-gulp.task('dist-variables', ['dist-core-move'], function(done) {
+function distVariables(done) {
 
     var regexp  = /(@[\w\-]+\s*:(.*);?)/g, variables = [], promises = [], cache = {};
 
@@ -403,9 +382,9 @@ gulp.task('dist-variables', ['dist-core-move'], function(done) {
             });
         });
     });
-});
+}
 
-gulp.task('dist-themes', ['dist-variables'], function(done) {
+function distThemes(done) {
 
     var promises = [];
 
@@ -462,9 +441,9 @@ gulp.task('dist-themes', ['dist-variables'], function(done) {
 
         Promise.all(promises).then(function(){ done(); });
     });
-});
+}
 
-gulp.task('dist-themes-core', ['dist-themes'], function(done) {
+function distThemesCore(done) {
 
     var promises = [];
 
@@ -498,12 +477,13 @@ gulp.task('dist-themes-core', ['dist-themes'], function(done) {
             done();
         });
     });
-});
+}
 
 /*
  * misc tasks
  * ---------------------------------------------------------*/
-gulp.task('build-docs', function(done) {
+
+function buildDocs(done) {
 
     // minify css
     gulp.src('./docs/less/uikit.less').pipe(less()).pipe(rename({ suffix: '.docs.min' })).pipe(minifycss({advanced:false})).pipe(gulp.dest('./docs/css')).on('end', function(){
@@ -512,16 +492,16 @@ gulp.task('build-docs', function(done) {
             done();
         });
     });
-});
+}
 
-gulp.task('build-site', ['indexthemes'], function(done) {
+function buildSite() {
 
-    gulp.src(['docs/js/docs.js', 'docs/js/analytics.js'])
+    return gulp.src(['docs/js/docs.js', 'docs/js/analytics.js'])
         .pipe(concat('docs.js'))
-        .pipe(gulp.dest('docs/js/')).on('end', done)
-});
+        .pipe(gulp.dest('docs/js/'));
+}
 
-gulp.task('indexthemes', function() {
+function indexThemes(done) {
 
     var data = [];
 
@@ -558,24 +538,26 @@ gulp.task('indexthemes', function() {
     console.log(data.length+' themes found: ' + data.map(function(theme){ return theme.name;}).join(", "));
 
     fs.writeFileSync("themes.json", JSON.stringify(data, " ", 4));
-});
 
-gulp.task('prefix', function(done) {
+    done();
+}
+
+function prefix(done) {
+
     var prefix = gutil.env.p || gutil.env.prefix || false;
 
-    if(!prefix) {
+    if (!prefix) {
         return done();
     }
 
     gutil.log("Replacing prefix 'uk' with '"+prefix+"'");
 
-    gulp.src(['./dist/**/*.css', './dist/**/*.less', './dist/**/*.scss', './dist/**/*.js'])
+    return gulp.src(['./dist/**/*.css', './dist/**/*.less', './dist/**/*.scss', './dist/**/*.js'])
         .pipe(replace(/(uk-([a-z\d\-]+))/g, prefix+'-$2'))
         .pipe(replace(/data-uk-/g, 'data-'+prefix+'-'))
         .pipe(replace(/UIkit2/g, 'UIkit2'+prefix))
-        .pipe(gulp.dest('./dist'))
-        .on('end', done);
-});
+        .pipe(gulp.dest('./dist'));
+}
 
 /*
  * sublime plugin tasks
@@ -599,7 +581,7 @@ var pythonList = function(classes) {
 };
 
 // classes: uk-* from CSS files
-gulp.task('sublime-css', function(done) {
+function cssSublime(done) {
 
     mkdirp("dist/sublime", function () {
 
@@ -627,10 +609,10 @@ gulp.task('sublime-css', function(done) {
 
             }));
     });
-});
+}
 
 // data attributes: data-uk-* from JS files
-gulp.task('sublime-js', function(done) {
+function jsSublime(done) {
 
     mkdirp("dist/sublime", function(){
 
@@ -648,9 +630,9 @@ gulp.task('sublime-js', function(done) {
 
         }));
     });
-});
+}
 
-gulp.task('sublime-snippets',  function(done) {
+function sublimeSnippets(done) {
 
     var template = ["<snippet>",
                         "<content><![CDATA[{content}]]></content>",
@@ -693,9 +675,9 @@ gulp.task('sublime-snippets',  function(done) {
 
     done();
 
-});
+}
 
-gulp.task('sublime', ['sublime-css', 'sublime-js', 'sublime-snippets'], function(done) {
+function sublime(done) {
 
     var outfile = 'sublime_completions.py';
 
@@ -703,6 +685,37 @@ gulp.task('sublime', ['sublime-css', 'sublime-js', 'sublime-snippets'], function
         .pipe(concat(outfile))
         .pipe(gulp.dest('dist/sublime/'))
         .on('end', function(){
-            gulp.src("dist/sublime/tmp_*.py", {read: false}).pipe(rimraf()).on('end', done);
+            gulp.src("dist/sublime/tmp_*.py", {read: false}).pipe(vinylPaths(del)).on('end', done);
         });
-});
+}
+
+/*
+ * Define complex tasks
+ */
+
+const sassify = gulp.series(sassCopy, sassConvert, sass);
+const distCore = gulp.series(distClean, distCoreMove, distVariables, distThemes);
+const distBuild = gulp.series(distCore, distThemesCore);
+const dist = gulp.series(distBuild, sassify, distCoreMinify, distCoreHeader, distBowerFile, distMinifyCleanup);
+
+/*
+ * Export tasks
+ */
+
+exports.default = gulp.series(
+    gulp.parallel(dist, buildDocs, indexThemes),
+    prefix
+);
+exports.build = gulp.series(dist, buildPkg);
+exports.buildDocs = buildDocs;
+exports.buildSite = gulp.series(indexThemes, buildSite);
+exports.help = help;
+exports.watch = gulp.series(
+    gulp.parallel(distClean, indexThemes),
+    watchFiles
+);
+exports.sync = sync;
+exports.sublime = gulp.series(
+    gulp.parallel(cssSublime, jsSublime, sublimeSnippets),
+    sublime
+);
