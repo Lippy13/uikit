@@ -76,9 +76,13 @@
 
             if (UI.support.transition && !force) {
 
-                $body.one(UI.support.transition.end, function() {
+                bar.one(UI.support.transition.end, function() {
                     finalize();
-                }).css((rtl ? 'margin-right' : 'margin-left'), '');
+                }).children().on(UI.support.transition.end, function(e) {
+                    e.stopPropagation();
+                });
+
+                $body.css((rtl ? 'margin-right' : 'margin-left'), '');
 
                 if (bar.attr('mode') == 'reveal') {
                     bar.css('clip', '');
