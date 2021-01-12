@@ -1,9 +1,9 @@
 var pkg         = require('./package.json'),
     del         = require('del'),
+    log         = require('fancy-log'),
     fs          = require('fs'),
     glob        = require('glob'),
     gulp        = require('gulp'),
-    gutil       = require('gulp-util'),
     cleancss    = require('gulp-clean-css'),
     concat      = require('gulp-concat'),
     ignore      = require('gulp-ignore'),
@@ -15,6 +15,7 @@ var pkg         = require('./package.json'),
     watch       = require('gulp-watch'),
     tap         = require('gulp-tap'),
     zip         = require('gulp-zip'),
+    minimist    = require('minimist'),
     mkdirp      = require('mkdirp'),
     path        = require('path'),
     runSequence = require('run-sequence'),
@@ -22,7 +23,10 @@ var pkg         = require('./package.json'),
     browserSync = require('browser-sync'),
     Promise     = require('promise');
 
-var watchmode    = gutil.env._.length && gutil.env._[0] == 'watch',
+const colors    = require('ansi-colors');
+
+var argv         = minimist(process.argv.slice(2)),
+    watchmode    = argv._.length && argv._[0] == 'watch',
     watchCache   = {},
     watchfolders = ['src/**/*', 'themes/**/*.less', 'custom/**/*.less'],
     getThemes    = function(theme, all) {
@@ -53,8 +57,8 @@ var watchmode    = gutil.env._.length && gutil.env._[0] == 'watch',
 
     themes    = (function(){
 
-        var theme = gutil.env.t || gutil.env.theme || false,
-            all   = gutil.env.all || gutil.env.a || theme;
+        var theme = argv.t || argv.theme || false,
+            all   = argv.all || argv.a || theme;
 
         return getThemes(theme, all);
     })(),
@@ -177,7 +181,7 @@ function help(done) {
 
 function distClean(done) {
 
-    if (gutil.env.c || gutil.env.clean) {
+    if (argv.c || argv.clean) {
         return gulp.src('dist', {read: false}).pipe(vinylPaths(del));
     } else {
         done();
@@ -248,7 +252,7 @@ function distBowerFile(done) {
 
 function distMinifyCleanup(done) {
 
-    if (gutil.env.m || gutil.env.min) {
+    if (argv.m || argv.min) {
         return del(['./dist/**/*.css', './dist/**/*.js', '!./dist/**/*.min.css', '!./dist/**/*.min.js']);
     } else {
         done();
@@ -458,7 +462,7 @@ function distThemesCore(done) {
 
             gulp.src(theme.uikit).pipe(less({"modifyVars": modifyVars}).on('error', function(error) {
 
-                gutil.log(gutil.colors.red('Error in ') + '\'' + gutil.colors.cyan(theme.uikit) + '\'\n', error.toString());
+                log(colors.red('Error in ') + '\'' + colors.cyan(theme.uikit) + '\'\n', error.toString());
                 resolve();
 
             })).pipe(rename({ suffix: ('.'+theme.name) })).pipe(gulp.dest('./dist/css')).on('end', function(){
@@ -544,13 +548,13 @@ function indexThemes(done) {
 
 function prefix(done) {
 
-    var prefix = gutil.env.p || gutil.env.prefix || false;
+    var prefix = argv.p || argv.prefix || false;
 
     if (!prefix) {
         return done();
     }
 
-    gutil.log("Replacing prefix 'uk' with '"+prefix+"'");
+    log("Replacing prefix 'uk' with '"+prefix+"'");
 
     return gulp.src(['./dist/**/*.css', './dist/**/*.less', './dist/**/*.scss', './dist/**/*.js'])
         .pipe(replace(/(uk-([a-z\d\-]+))/g, prefix+'-$2'))

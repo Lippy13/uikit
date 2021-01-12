@@ -24,8 +24,10 @@
     "node-promise": "^0.5.10"
   },
   "devDependencies": {
+    "ansi-colors": "latest",
     "browser-sync": "^2.6.5",
     "del": "^5.1.0",
+    "fancy-log": "latest",
     "glob": "^7.1.6",
     "gulp": "^4.0.2",
     "gulp-clean-css": "^4.3.0",
@@ -37,9 +39,9 @@
     "gulp-replace": "^0.4.0",
     "gulp-tap": "latest",
     "gulp-uglify": "^3.0.2",
-    "gulp-util": "latest",
     "gulp-watch": "^5.0.1",
     "gulp-zip": "^5.0.2",
+    "minimist": "latest",
     "mkdirp": "latest",
     "promise": "latest",
     "run-sequence": "^0.3.6",
