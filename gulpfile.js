@@ -4,13 +4,13 @@ var pkg         = require('./package.json'),
     glob        = require('glob'),
     gulp        = require('gulp'),
     gutil       = require('gulp-util'),
+    cleancss    = require('gulp-clean-css'),
     concat      = require('gulp-concat'),
     ignore      = require('gulp-ignore'),
     rename      = require('gulp-rename'),
     replace     = require('gulp-replace'),
     header      = require('gulp-header'),
     less        = require('gulp-less'),
-    minifycss   = require('gulp-minify-css'),
     uglify      = require('gulp-uglify'),
     watch       = require('gulp-watch'),
     tap         = require('gulp-tap'),
@@ -196,7 +196,7 @@ function distCoreMinify(done) {
     }
 
     // minify css
-    gulp.src(['./dist/css/**/*.css', '!./dist/css/**/*.min.css']).pipe(rename({ suffix: '.min' })).pipe(minifycss({advanced:false})).pipe(gulp.dest('./dist/css')).on('end', function(){
+    gulp.src(['./dist/css/**/*.css', '!./dist/css/**/*.min.css']).pipe(rename({ suffix: '.min' })).pipe(cleancss({compatibility:'ie9'})).pipe(gulp.dest('./dist/css')).on('end', function(){
 
         // minify js
         gulp.src(['./dist/js/**/*.js', '!./dist/js/**/*.min.js']).pipe(rename({ suffix: '.min' })).pipe(uglify()).pipe(gulp.dest('./dist/js')).on('end', function(){
@@ -486,7 +486,7 @@ function distThemesCore(done) {
 function buildDocs(done) {
 
     // minify css
-    gulp.src('./docs/less/uikit.less').pipe(less()).pipe(rename({ suffix: '.docs.min' })).pipe(minifycss({advanced:false})).pipe(gulp.dest('./docs/css')).on('end', function(){
+    gulp.src('./docs/less/uikit.less').pipe(less()).pipe(rename({ suffix: '.docs.min' })).pipe(cleancss({compatibility:'ie9'})).pipe(gulp.dest('./docs/css')).on('end', function(){
 
         gulp.src(corejs).pipe(concat('uikit.min.js')).pipe(uglify()).pipe(gulp.dest('./docs/js')).on('end', function(){
             done();
