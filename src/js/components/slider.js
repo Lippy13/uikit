@@ -232,7 +232,7 @@
                 return;
             }
 
-            dir = dir || (idx > this.focus ? 1:-1);
+            dir = dir || (idx > this.focus ? 1 : (idx < this.focus ? -1 : 0));
 
             var item = this.items.eq(idx), area, i;
 
@@ -344,6 +344,8 @@
         infinite: function(baseidx, direction) {
 
             var $this = this, item = this.items.eq(baseidx), i, z = baseidx, move = [], area = 0;
+
+            direction = direction || (baseidx > this.items.length/2 ? 1 : -1);
 
             if (direction == 1) {
 
