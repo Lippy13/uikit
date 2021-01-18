@@ -35,18 +35,15 @@
             // init code
             UI.ready(function(context) {
 
-                setTimeout(function(){
+                UI.$('[data-uk-slider]', context).each(function(){
 
-                    UI.$('[data-uk-slider]', context).each(function(){
+                    var ele = UI.$(this);
 
-                        var ele = UI.$(this);
+                    if (!ele.data('slider')) {
+                        UI.slider(ele, UI.Utils.options(ele.attr('data-uk-slider')));
+                    }
+                });
 
-                        if (!ele.data('slider')) {
-                            UI.slider(ele, UI.Utils.options(ele.attr('data-uk-slider')));
-                        }
-                    });
-
-                }, 0);
             });
         },
 
