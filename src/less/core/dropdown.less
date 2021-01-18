@@ -101,7 +101,8 @@
 /*
  * 1. Show dropdown
  * 2. Set animation
- * 3. Needed for scale animation
+ * 3. Needs fill mode to be set for Safari
+ * 4. Needed for scale animation
  */
 
 .uk-open > .uk-dropdown,
@@ -112,6 +113,9 @@
     -webkit-animation: @dropdown-animation 0.2s ease-in-out;
     animation: @dropdown-animation 0.2s ease-in-out;
     /* 3 */
+    -webkit-animation-fill-mode: forwards;
+    animation-fill-mode: forwards;
+    /* 4 */
     -webkit-transform-origin: 0 0;
     transform-origin: 0 0;
 }
@@ -247,6 +251,8 @@
 .uk-open > .uk-dropdown-navbar {
     -webkit-animation: @dropdown-navbar-animation 0.2s ease-in-out;
     animation: @dropdown-navbar-animation 0.2s ease-in-out;
+    -webkit-animation-fill-mode: forwards;
+    animation-fill-mode: forwards;
 }
 
 
