@@ -60,6 +60,8 @@
 
             if(!this.totoggle.length) return;
 
+            this.updateAria();
+
             if (this.options.animation && UI.support.animation) {
 
                 var $this = this, animations = this.options.animation.split(',');
@@ -102,8 +104,6 @@
                 UI.Utils.checkDisplay(this.totoggle);
             }
 
-            this.updateAria();
-
         },
 
         getToggles: function() {
@@ -113,8 +113,8 @@
 
         updateAria: function() {
             if (this.aria && this.totoggle.length) {
-                this.totoggle.not('[aria-hidden]').each(function(){
-                    UI.$(this).attr('aria-hidden', UI.$(this).hasClass('uk-hidden'));
+                this.totoggle.each(function(){
+                    UI.$(this).attr('aria-hidden', !UI.$(this).hasClass('uk-hidden'));
                 });
             }
         }
